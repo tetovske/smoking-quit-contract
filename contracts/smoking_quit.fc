@@ -1,0 +1,82 @@
+#include "imports/stdlib.fc";
+
+const op::quitsmoking = "op::quitsmoking"c; ;; opcode for quit smoking
+const op::beginsmoking = "op::beginsmoking"c; ;; opcode for begin smoking
+
+;; load_data populates storage variables.
+cell load_data() impure {
+    ;; retrieve hashmap from storage.
+    cell data = get_data();
+    slice ds = data.begin_parse();
+
+    ;; create new non-smoking hashmap if empty.
+    if (ds.slice_bits() == 0) {
+        return new_dict();
+    }
+
+    return data;
+}
+
+;; == MSG STRUCTURE ==
+;; in_msg_full: flags (4 bit), msg_addr (264 bit = 8 + 256)
+;; in_msg_body: op (32 bit), query_id (64 bit), quit_unix_ts (64 bit).
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore all empty messages
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    ;; ignore all bounced messages.
+    if (flags & 1) {
+        return ();
+    }
+
+    slice sender_addr = cs~load_msg_addr();
+
+    ;; by convention, the first 32 + 64 bits.
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+
+    cell data = get_data();
+    slice ds = data.begin_parse();
+
+    cell dict = ds.slice_bits() == 0 ? new_dict() : data;
+
+    ;; SHA-256 key of sender addr.
+    int dict_key = slice_hash(sender_addr);
+
+    ;; handle messages for quit smoking
+    ;; save unix_timestamp in UTC.
+    if (op == op::quitsmoking) {
+        dict~udict_set(256, dict_key, in_msg_body);
+        set_data(dict);
+
+        return ();
+    }
+
+    ;; delete progress if selected.
+    if (op == op::beginsmoking) {
+        dict~udict_delete?(256, dict_key);
+        set_data(dict);
+
+        return ();
+    }
+
+    ;; if the message contains an op that is not known to this contract, throw an exception.
+    throw(0xffff);
+}
+
+;; get timestamp for address
+int get_timestamp(slice addr) method_id {
+    cell dict = load_data();
+
+    (slice data, int success) = dict.udict_get?(256, slice_hash(addr));
+    throw_unless(12, success);
+
+    int unix_ts = data~load_uint(64);
+
+    return unix_ts;
+}
