@@ -14,7 +14,6 @@ import {
 
 export type SmokingQuitConfig = {};
 
-
 export function smokingQuitConfigToCell(config: SmokingQuitConfig): Cell {
     return beginCell().endCell();
 }
@@ -86,8 +85,6 @@ export class SmokingQuit implements Contract {
 
     async getTimestamp(provider: ContractProvider, address: Address) {
         const addr = beginCell().storeAddress(address).endCell();
-
-        const val: bigint = BigInt(11)
 
         const result = (await provider.get('get_timestamp', [{ type: 'slice', cell: addr }])).stack;
 

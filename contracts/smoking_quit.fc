@@ -74,7 +74,9 @@ int get_timestamp(slice addr) method_id {
     cell dict = load_data();
 
     (slice data, int success) = dict.udict_get?(256, slice_hash(addr));
-    throw_unless(12, success);
+    if (success == 0) {
+        return (0);
+    }
 
     int unix_ts = data~load_uint(64);
 

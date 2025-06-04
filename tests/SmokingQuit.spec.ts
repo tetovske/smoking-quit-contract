@@ -57,4 +57,13 @@ describe('SmokingQuit', () => {
 
         expect(savedTimestamp).toBe(unixTs);
     });
+
+    it('should not have timestamp', async () => {
+        const treasury = await blockchain.treasury('treasury');
+
+        const savedTimestamp = await smokingQuit.getTimestamp(treasury.address);
+        console.log('saved timestamp', savedTimestamp);
+
+        expect(savedTimestamp).toBe(0);
+    });
 });
